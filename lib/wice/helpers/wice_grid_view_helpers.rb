@@ -306,7 +306,6 @@ module Wice
           link_style = nil
           if grid.ordered_by?(column)
             column.add_css_class('sorted')
-            Wice::WgHash.add_or_append_class_value!(opts, 'sorted')
             link_style = grid.order_direction
             direction = 'desc' if grid.order_direction == 'asc'
           end
@@ -321,7 +320,7 @@ module Wice
         else
           if reuse_last_column_for_filter_buttons && last
             grid.output_buffer << content_tag(:th,
-              hide_show_icon(filter_row_id, grid, filter_shown, no_filter_row, options[:show_filters], rendering), opts
+              hide_show_icon(filter_row_id, grid, filter_shown, no_filter_row, options[:show_filters], rendering)
             )
           else
             grid.output_buffer << content_tag(:th, column_name, opts)
@@ -494,7 +493,7 @@ module Wice
 
       grid.output_buffer << '</div>'
 
-      if Rails.env.development?
+      if Rails.env == 'development'
         grid.output_buffer  <<  javascript_tag(%/ window.onload = function(){ \n/ +
           %$ if (typeof(WiceGridProcessor) == "undefined"){\n$ +
           %$   alert("wice_grid.js not loaded, WiceGrid cannot proceed!\\n" +\n$ +
@@ -665,7 +664,7 @@ module Wice
         per_page = collection_total_entries
 
         first = 1
-        last = collection.size
+        last = collection.length
 
         num_pages = 1
 
@@ -697,7 +696,6 @@ module Wice
         '0'
       else
         parameters << ["#{grid.name}[pp]", collection_total_entries]
-
         "#{first}-#{last} / #{collection_total_entries} " +
           if (! allow_showing_all_records) || collection_total_entries <= collection.length
             ''
