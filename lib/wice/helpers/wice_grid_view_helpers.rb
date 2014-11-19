@@ -660,12 +660,12 @@ module Wice
 
       if grid.all_record_mode?
 
-        collection_total_entries = collection.size
+        collection_total_entries = collection.length
         current_page = 1
         per_page = collection_total_entries
 
         first = 1
-        last = collection.size
+        last = collection.length
 
         num_pages = 1
 
