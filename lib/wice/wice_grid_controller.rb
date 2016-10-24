@@ -1,13 +1,10 @@
-# encoding: UTF-8
 module Wice
-  module Controller
-
+  module Controller #:nodoc:
     def self.included(base) #:nodoc:
       base.extend(ClassMethods)
     end
 
-    module ClassMethods
-
+    module ClassMethods #:nodoc:
       # Used to add query processing action methods into a controller.
       # Read section "Saving Queries How-To" in README for more details.
       def save_wice_grid_queries
@@ -29,6 +26,8 @@ module Wice
     # The second parameters is a hash of parameters:
     # * <tt>:joins</tt> - ActiveRecord <tt>:joins</tt> option.
     # * <tt>:include</tt> - ActiveRecord <tt>:include</tt> option.
+    #   The value of `:include` can be an array of association names `include:  [:category, :users, :status]`,
+    #   If you need to join tables to joined tables, use hashes: `include:  [:category, {users: :group}, :status]`
     # * <tt>:conditions</tt> - ActiveRecord <tt>:conditions</tt> option.
     # * <tt>:per_page</tt> - Number of rows per one page. The default is 10.
     # * <tt>:page</tt> - The page to show when rendering the grid for the first time. The default is one, naturally.
@@ -50,7 +49,6 @@ module Wice
     # * <tt>:after</tt> - defined a name of a controller method which would be called by the grid after all user input has been processed,
     #   with a single parameter which is a Proc object. Once called, the object returns a list of all records of the current selection
     #   throughout all pages. See section "Integration With The Application" in the README.
-    # * <tt>:total_entries</tt> - If not specified, <tt>will_paginate</tt> will run a <tt>select count</tt>
     # * <tt>:select</tt> - ActiveRecord <tt>:select</tt> option. Please do not forget that <tt>:select</tt> is ignored
     #   when <tt>:include</tt> is present. It is unlikely you would need <tt>:select</tt> with WiceGrid, but if you do,
     #   use it with care :)
@@ -64,7 +62,6 @@ module Wice
     # Defaults for parameters <tt>:per_page</tt>, <tt>:order_direction</tt>, and <tt>:name</tt>
     # can be changed in <tt>lib/wice_grid_config.rb</tt>, this is convenient if you want to set a project wide setting
     # without having to repeat it for every grid instance.
-
 
     def initialize_grid(klass, opts = {})
       wg = WiceGrid.new(klass, self, opts)
@@ -90,7 +87,7 @@ module Wice
     # This convention can be easily overridden by supplying a hash parameter to +export_grid_if_requested+ where each key is the name of
     # a grid, and the value is the name of the template (like it is specified for +render+, i.e. without '_' and extensions):
     #
-    #   export_grid_if_requested(grid: => 'orders', 'grid2' => 'invoices')
+    #   export_grid_if_requested('grid' => 'orders', 'grid2' => 'invoices')
     #
     # If the request is not a CSV export request, the method does nothing and returns +false+, if it is a CSV export request,
     # the method returns +true+.
@@ -114,9 +111,9 @@ module Wice
         template_name ||= grid.name + '_grid'
         temp_filename = render_to_string(partial: template_name)
         temp_filename = temp_filename.strip
-        filename = (grid.csv_file_name || grid.name ) + '.csv'
+        filename = (grid.csv_file_name || grid.name) + '.csv'
         grid.csv_tempfile.close
-        send_file_rails2 temp_filename, filename: filename, type: 'text/csv; charset=utf-8'
+        send_file_rails2 temp_filename, filename: filename, type: "text/csv; charset=#{get_output_encoding grid.csv_encoding}"
         grid.csv_tempfile = nil
         true
       else
@@ -138,10 +135,10 @@ module Wice
     # * <tt>:value</tt> - the value of the column filter.
     def wice_grid_custom_filter_params(opts = {})
       options = {
-        :grid_name => 'grid',
-        :attribute => nil,
-        :model => nil,
-        :value => nil
+        grid_name: 'grid',
+        attribute: nil,
+        model:     nil,
+        value:     nil
       }
       options.merge!(opts)
 
@@ -152,23 +149,30 @@ module Wice
       attr_name = if options[:model]
         unless options[:model].nil?
           options[:model] = options[:model].constantize if options[:model].is_a? String
-          raise Wice::WiceGridArgumentError.new("Option :model can be either a class or a string instance") unless options[:model].is_a? Class
+          raise Wice::WiceGridArgumentError.new('Option :model can be either a class or a string instance') unless options[:model].is_a? Class
         end
         options[:model].table_name + '.' + options[:attribute]
       else
         options[:attribute]
       end
 
-      {"#{options[:grid_name]}[f][#{attr_name}][]" => options[:value]}
+      { "#{options[:grid_name]}[f][#{attr_name}][]" => options[:value] }
     end
 
     private
 
+    def get_output_encoding(csv_encoding)
+      if csv_encoding.blank?
+        'utf-8'
+      else
+        csv_encoding.split(':').first
+      end
+    end
 
     def send_file_rails2(path, options = {}) #:nodoc:
-      raise "Cannot read file #{path}" unless File.file?(path) and File.readable?(path)
+      raise "Cannot read file #{path}" unless File.file?(path) && File.readable?(path)
 
-      options[:length]   ||= File.size(path)
+      options[:length] ||= File.size(path)
       options[:filename] ||= File.basename(path) unless options[:url_based_filename]
       send_file_headers_rails2! options
 
@@ -177,7 +181,6 @@ module Wice
       logger.info "Sending file #{path}" unless logger.nil?
       File.open(path, 'rb') { |file| render status: options[:status], text: file.read }
     end
-
 
     DEFAULT_SEND_FILE_OPTIONS_RAILS2 = { #:nodoc:
       type:         'application/octet-stream'.freeze,
@@ -188,7 +191,6 @@ module Wice
     }.freeze
 
     def send_file_headers_rails2!(options) #:nodoc:
-
       options.update(DEFAULT_SEND_FILE_OPTIONS_RAILS2.merge(options))
       [:length, :type, :disposition].each do |arg|
         raise ArgumentError, ":#{arg} option required" if options[arg].nil?
@@ -216,6 +218,5 @@ module Wice
       # is called for handling the download is run, so let's workaround that
       headers['Cache-Control'] = 'private' if headers['Cache-Control'] == 'no-cache'
     end
-
   end
 end

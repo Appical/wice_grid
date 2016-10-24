@@ -1,11 +1,12 @@
-# encoding: UTF-8
 module Wice
-
   module Columns #:nodoc:
-
     class ViewColumnString < ViewColumn #:nodoc:
 
-      attr_accessor :negation, :auto_reloading_input_with_negation_checkbox
+      # whether the filter contains a negation checkbox
+      attr_accessor :negation
+
+      # whether the filter contains a negation checkbox and autoreloading is necessary
+      attr_accessor :auto_reloading_input_with_negation_checkbox
 
       def render_filter_internal(params) #:nodoc:
         @contains_a_text_input = true
@@ -19,22 +20,21 @@ module Wice
 
           '<div class="text-filter-container">' +
             text_field_tag(parameter_name, params[:v], size: 8, id: @dom_id, class: css_class) +
-            if defined?(Wice::Defaults::NEGATION_CHECKBOX_LABEL) && ! Wice::ConfigurationProvider.value_for(:NEGATION_CHECKBOX_LABEL).blank?
+            if defined?(Wice::Defaults::NEGATION_CHECKBOX_LABEL) && !Wice::ConfigurationProvider.value_for(:NEGATION_CHECKBOX_LABEL).blank?
               Wice::ConfigurationProvider.value_for(:NEGATION_CHECKBOX_LABEL)
             else
               ''
             end +
             check_box_tag(parameter_name2, '1', (params[:n] == '1'),
-              id: @dom_id2,
-              title: NlMessage['negation_checkbox_title'],
-              class: "negation-checkbox #{css_class}") +
+                          id: @dom_id2,
+                          title: NlMessage['negation_checkbox_title'],
+                          class: "negation-checkbox #{css_class}") +
             '</div>'
         else
           @query, _, parameter_name, @dom_id = form_parameter_name_id_and_query('')
           text_field_tag(parameter_name, (params.blank? ? '' : params), size: 8, id: @dom_id, class: css_class)
         end
       end
-
 
       def yield_declaration_of_column_filter #:nodoc:
         if negation
@@ -50,7 +50,6 @@ module Wice
         end
       end
 
-
       def has_auto_reloading_input? #:nodoc:
         auto_reload
       end
@@ -58,17 +57,14 @@ module Wice
       def auto_reloading_input_with_negation_checkbox? #:nodoc:
         self.auto_reloading_input_with_negation_checkbox
       end
-
     end
 
-
     class ConditionsGeneratorColumnString < ConditionsGeneratorColumn  #:nodoc:
-
       def generate_conditions(table_alias, opts)   #:nodoc:
-        if opts.kind_of? String
+        if opts.is_a? String
           string_fragment = opts
           negation = ''
-        elsif (opts.kind_of? Hash) && opts.has_key?(:v)
+        elsif (opts.is_a? Hash) && opts.key?(:v)
           string_fragment = opts[:v]
           negation = opts[:n] == '1' ? 'NOT' : ''
         else
@@ -78,12 +74,18 @@ module Wice
         if string_fragment.empty?
           return false
         end
-        [
-          " #{negation}  #{@column_wrapper.alias_or_table_name(table_alias)}.#{@column_wrapper.name} #{::Wice.get_string_matching_operators(@column_wrapper.model)} ?",
-          '%' + string_fragment + '%'
-        ]
-      end
 
+        string_matching_operator = ::Wice.get_string_matching_operators(@column_wrapper.model)
+
+        comparator = if string_matching_operator == 'CI_LIKE'
+          " #{negation}  UPPER(#{@column_wrapper.alias_or_table_name(table_alias)}.#{@column_wrapper.name}) LIKE  UPPER(?)"
+        else
+          " #{negation}  #{@column_wrapper.alias_or_table_name(table_alias)}.#{@column_wrapper.name} #{string_matching_operator} ?"
+        end
+
+        [ comparator, '%' + string_fragment + '%' ]
+
+      end
     end
   end
 end

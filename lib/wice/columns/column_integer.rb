@@ -1,16 +1,12 @@
-# encoding: UTF-8
 module Wice
-
   module Columns #:nodoc:
-
     class ViewColumnInteger < ViewColumn #:nodoc:
-
       def render_filter_internal(params) #:nodoc:
         @contains_a_text_input = true
 
         @query, _, parameter_name, @dom_id = form_parameter_name_id_and_query(eq: '')
 
-        opts = {size: 3, id: @dom_id, class: 'range-start'}
+        opts = { size: 3, id: @dom_id, class: 'range-start' }
 
         opts[:class] += ' form-control input-sm'
 
@@ -33,36 +29,35 @@ module Wice
       end
     end
 
-
     class ConditionsGeneratorColumnInteger < ConditionsGeneratorColumn  #:nodoc:
-      def get_op_and_value(val)
+      def get_op_and_value(val) #:nodoc:
         num = nil
         op  = nil
 
         # remove spaces
-        val = val.gsub(' ','')
+        val = val.gsub(' ', '')
 
-        first_digit_or_dot_index = val =~ /[0-9.]/
-        if first_digit_or_dot_index
-          op = val[0...first_digit_or_dot_index]
+        start_of_num = val =~ /[0-9.-]/ # first digit, dot or negative sign
+        if start_of_num
+          op = val[0...start_of_num]
           op = '=' if op == ''
-          num = Float(val[first_digit_or_dot_index..-1]) rescue nil
+          num = Float(val[start_of_num..-1]) rescue nil
 
-          op = nil unless ['<','>','<=','>=','='].include?(op)
+          op = nil unless ['<', '>', '<=', '>=', '='].include?(op)
         end
         [op, num]
       end
 
-      def  generate_conditions(table_alias, opts)   #:nodoc:
-        unless opts.kind_of? Hash
-          Wice.log "invalid parameters for the grid integer filter - must be a hash"
+      def generate_conditions(table_alias, opts)   #:nodoc:
+        unless opts.is_a? Hash
+          Wice.log 'invalid parameters for the grid integer filter - must be a hash'
           return false
         end
         conditions = [[]]
         if opts[:eq]
           op, num = get_op_and_value(opts[:eq])
           if op && num
-            conditions[0] << " #{@column_wrapper.alias_or_table_name(table_alias)}.#{@column_wrapper.name} " + op + " ? "
+            conditions[0] << " #{@column_wrapper.alias_or_table_name(table_alias)}.#{@column_wrapper.name} " + op + ' ? '
             conditions << num
           else
             opts.delete(:eq)
@@ -78,6 +73,5 @@ module Wice
         conditions
       end
     end
-
   end
 end

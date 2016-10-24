@@ -22,29 +22,31 @@ initWiceGrid = ->
 
     for filterDeclaration in filterDeclarations
       do (filterDeclaration) ->
-        gridProcessor.register
-          filterName : filterDeclaration.filterName
-          detached    : filterDeclaration.detached
-          templates   : filterDeclaration.declaration.templates
-          ids         : filterDeclaration.declaration.ids
+        if filterDeclaration?
+          gridProcessor.register
+            filterName : filterDeclaration.filterName
+            detached    : filterDeclaration.detached
+            templates   : filterDeclaration.declaration.templates
+            ids         : filterDeclaration.declaration.ids
 
     unless window[globalVarForAllGrids]
       window[globalVarForAllGrids] = {}
 
     window[globalVarForAllGrids][gridName] = gridProcessor
 
-    setupDatepicker()
-    setupSubmitReset wiceGridContainer, gridProcessor
-    setupCsvExport wiceGridContainer, gridProcessor
-    setupHidingShowingOfFilterRow wiceGridContainer
-    setupShowingAllRecords wiceGridContainer, gridProcessor
-    setupMultiSelectToggle wiceGridContainer
+    # setting up stuff for in the context of each grid
+    setupSubmitReset                   wiceGridContainer, gridProcessor
+    setupCsvExport                     wiceGridContainer, gridProcessor
+    setupHidingShowingOfFilterRow      wiceGridContainer
+    setupShowingAllRecords             wiceGridContainer, gridProcessor
+    setupMultiSelectToggle             wiceGridContainer
     setupAutoreloadsForInternalFilters wiceGridContainer, gridProcessor
-    setupBulkToggleForActionColumn wiceGridContainer
+    setupBulkToggleForActionColumn     wiceGridContainer
 
   setupAutoreloadsForExternalFilters()
   setupExternalSubmitReset()
   setupExternalCsvExport()
+  setupDatepicker()
 
   # for all grids on oage because it does not matter which grid it is
   setupMultiSelectToggle $('.wg-detached-filter')
@@ -61,23 +63,50 @@ moveDateBoundIfInvalidPeriod = (dataFieldNameWithTheOtherDatepicker, datepickerH
       theOtherDatepicker.next().next().html  $.datepicker.formatDate(dateFormat, selectedDate)
 
 
-
-# datepicker logic
 setupDatepicker = ->
-  # check if datepicker is loaded
-  if $('.wice-grid-container input.check-for-datepicker[type=hidden], .wg-detached-filter input.check-for-datepicker[type=hidden]').length != 0
-    unless $.datepicker
-      alert """Seems like you do not have jQuery datepicker (http://jqueryui.com/demos/datepicker/)
-        installed. Either install it or set Wice::Defaults::HELPER_STYLE to :standard in
-        wice_grid_config.rb in order to use standard Rails date helpers
-      """
+  if $('.date-filter.wg-jquery-datepicker').length != 0
+    setupJqueryUiDatepicker()
 
+  if $('.date-filter.wg-bootstrap-datepicker').length != 0
+    setupBootstrapDatepicker()
+
+
+setupBootstrapDatepicker = ->
+  # check for bootstrap datepicker
+  unless $.fn.datepicker
+    alert """Seems like you do not have Bootstrap datepicker gem (https://github.com/Nerian/bootstrap-datepicker-rails)
+      installed. Either install it pick another filter with :filter_type.
+    """
+    return
+
+  $('.date-filter.wg-bootstrap-datepicker input:text[data-provide=datepicker]').each (index, dateField) ->
+
+    $(dateField).datepicker().on 'hide', (event) ->
+      $self = $(event.currentTarget)
+
+      eventToTriggerOnChange = $self.data('close-calendar-event-name')
+
+      if eventToTriggerOnChange
+        $self.trigger(eventToTriggerOnChange)
+
+      else if $self.attr('id').split('_').pop() == 'fr'
+        $to = $self.parent().next().find('input:text.check-for-bsdatepicker')
+        if $to.length > 0
+          $to.datepicker 'show'
+
+
+setupJqueryUiDatepicker = ->
+  # check jquery ui datepickeer
+  unless $.datepicker
+    alert """Seems like you do not have jQuery datepicker (http://jqueryui.com/demos/datepicker/)
+        installed. Either install it pick another filter with :filter_type.
+      """
   # setting up the locale for datepicker
-  if locale = $('.wice-grid-container input[type=hidden], .wg-detached-filter input[type=hidden]').data('locale')
+  if locale = $('.date-filter.wg-jquery-datepicker input[type=hidden]').data('locale')
     $.datepicker.setDefaults($.datepicker.regional[locale]);
 
 
-  $('.wice-grid-container .date-label, .wg-detached-filter .date-label').each  (index, removeLink) ->
+  $('.date-filter.wg-jquery-datepicker .date-label').each  (index, removeLink) ->
     datepickerHiddenField  = $('#' + $(removeLink).data('dom-id'))
 
     eventToTriggerOnChange = datepickerHiddenField.data('close-calendar-event-name')
@@ -96,14 +125,12 @@ setupDatepicker = ->
 
     yearRange = datepickerHiddenField.data('date-year-range')
 
+    labelText = datepickerHiddenField.data('button-text')
+
     # datepicker constructor
     datepickerHiddenField.datepicker
       firstDay:        1
-      showOn:          "button"
       dateFormat:      dateFormat
-      buttonImage:     datepickerHiddenField.data('button-image')
-      buttonImageOnly: true
-      buttonText:      datepickerHiddenField.data('button-text')
       changeMonth:     true
       changeYear:      true
       yearRange:       yearRange
@@ -130,8 +157,17 @@ setupDatepicker = ->
 
         $(that).html(dateText)
         if eventToTriggerOnChange
-         datepickerHiddenField.trigger(eventToTriggerOnChange)
+          datepickerHiddenField.trigger(eventToTriggerOnChange)
 
+    datepickerContainer = datepickerHiddenField.parent()
+
+    $(removeLink).before(" <i class=\"fa fa-calendar ui-datepicker-trigger\" title=\"#{labelText}\" ></i> ")
+
+    newlyAdded = $('.fa-calendar', datepickerContainer)
+
+    newlyAdded.click ->
+
+      datepickerHiddenField.datepicker("show")
 
 
 # hiding and showing the row with filters
@@ -164,22 +200,33 @@ setupSubmitReset = (wiceGridContainer, gridProcessor) ->
   $('.reset', wiceGridContainer).click ->
     gridProcessor.reset()
 
-  $('.wg-filter-row input[type=text]', wiceGridContainer).keydown (event) ->
+  $('.wg-filter-row input[type=text], .wg-filter-row input:text[data-provide=datepicker]', wiceGridContainer).keydown (event) ->
     if event.keyCode == 13
       event.preventDefault()
       gridProcessor.process()
 
+SetEnd = (txt) ->
+  if txt.createTextRange
+    #IE
+    FieldRange = txt.createTextRange()
+    FieldRange.moveStart 'character', txt.value.length
+    FieldRange.collapse()
+    FieldRange.select()
+  else
+    #Firefox and Opera
+    txt.focus()
+    length = txt.value.length
+    txt.setSelectionRange length, length
+  return
 
 focusElementIfNeeded = (focusId) ->
   elements = $('#' + focusId)
   if elToFocus = elements[0]
-    elToFocus.value = elToFocus.value
-    elToFocus.focus()
-
+    SetEnd elToFocus
 
 # autoreload for internal filters
 setupAutoreloadsForInternalFilters = (wiceGridContainer, gridProcessor) ->
-  $('select.auto-reload', wiceGridContainer).change ->
+  $('select.auto-reload, input.native-datepicker.auto-reload', wiceGridContainer).change ->
     gridProcessor.process()
 
   $('input.auto-reload', wiceGridContainer).keyup (event)->
@@ -203,7 +250,7 @@ setupAutoreloadsForExternalFilters =  ->
   $('.wg-detached-filter').each (index, detachedFilterContainer) ->
     gridProcessor = getGridProcessorForElement(detachedFilterContainer)
     if gridProcessor
-      $('select.auto-reload', detachedFilterContainer).change ->
+      $('select.auto-reload, input.native-datepicker.auto-reload', detachedFilterContainer).change ->
         gridProcessor.process()
 
       $('input.auto-reload', detachedFilterContainer).keyup (event)->
@@ -250,6 +297,9 @@ setupBulkToggleForActionColumn = (wiceGridContainer) ->
   $('.deselect-all', wiceGridContainer).click ->
     $('.sel input', wiceGridContainer).prop('checked', false).trigger('change')
 
+  $('.wg-select-all', wiceGridContainer).click ->
+    $('.sel input', wiceGridContainer).prop('checked', $(this).prop('checked')).trigger('change')
+
 
 getGridProcessorForElement = (element) ->
   gridName = $(element).data('grid-name')
@@ -290,10 +340,11 @@ setupExternalSubmitReset =  ->
   $('.wg-detached-filter').each (index, detachedFilterContainer) ->
     gridProcessor = getGridProcessorForElement(detachedFilterContainer)
     if gridProcessor
-      $('input[type=text]', this).keydown (event) ->
+      $('input[type=text], input:text[data-provide=datepicker]', this).keydown (event) ->
         if event.keyCode == 13
           gridProcessor.process()
           event.preventDefault()
           false
 
 window['getGridProcessorForElement'] = getGridProcessorForElement
+window['initWiceGrid'] = initWiceGrid

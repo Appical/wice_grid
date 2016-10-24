@@ -1,4 +1,3 @@
-# encoding: UTF-8
 module Wice
   class <<self
     # Used in routes.rb to define routes to the query processing controller.
@@ -11,18 +10,16 @@ module Wice
       controller = controller.to_s
 
       map.post '/wice_grid_serialized_queries/:grid_name',
-        to: "#{controller}#create_saved_query",
-        as: 'create_serialized_query'
+               to: "#{controller}#create_saved_query",
+               as: 'create_serialized_query'
 
       map.post '/wice_grid_serialized_queries/:grid_name/:id',
-        to: "#{controller}#delete_saved_query",
-        as: 'delete_serialized_query'
-
+               to: "#{controller}#delete_saved_query",
+               as: 'delete_serialized_query'
     end
   end
 
   module SerializedQueriesControllerMixin   #:nodoc:
-
     def delete_saved_query  #:nodoc:
       init
       if sq = @query_store_model.find_by_id_and_grid_name(params[:id], @grid_name)
@@ -54,25 +51,25 @@ module Wice
       @saved_query.name      = params[:query_name]
       @saved_query.query     = query_params
 
-      @saved_query.attributes = params[:extra] unless params[:extra].blank?
+      @saved_query.attributes = extra unless extra.nil?
 
       if @saved_query.save
         @grid_title_id = "#{@grid_name}_title"
         @notification_messages = NlMessage['query_saved_message']
       else
-        @error_messages = @saved_query.errors.map{ |_, msg| msg }.join(' ')
+        @error_messages = @saved_query.errors.map { |_, msg| msg }.join(' ')
       end
 
       render_asyns_result
     end
 
-    def extra
-      params[:extra]
+    def extra #:nodoc:
+      params[:extra].permit! unless params[:extra].nil?
     end
 
     protected
 
-    def render_asyns_result
+    def render_asyns_result #:nodoc:
       render json: {
         'error_messages'        => @error_messages,
         'notification_messages' => @notification_messages,
@@ -81,7 +78,7 @@ module Wice
     end
 
     def init  #:nodoc:
-      @query_store_model = ::Wice::get_query_store_model
+      @query_store_model = ::Wice.get_query_store_model
       @confirm = params[:confirm] == '1' || params[:confirm] == 'true'
       @grid_name = params[:grid_name]
     end

@@ -1,5 +1,4 @@
-# encoding: UTF-8
-# It is here only until this pull request is pulled: https://github.com/amatsuda/kaminari/pull/267
+# Ugly monkey-patching Kaminari (https://github.com/amatsuda/kaminari/pull/267)
 module Kaminari #:nodoc:
   module Helpers #:nodoc:
     class Tag #:nodoc:
