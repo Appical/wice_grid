@@ -403,19 +403,7 @@ module Wice
         end
       end
 
-      grid.output_buffer << '</thead><tfoot>'
-      grid.output_buffer << rendering.pagination_panel(number_of_columns, options[:hide_csv_button]) do
-        if pagination_panel_content_html
-          pagination_panel_content_html
-        else
-          pagination_panel_content_html =
-            pagination_panel_content(grid, options[:extra_request_parameters], options[:allow_showing_all_records], options[:pagination_theme])
-          pagination_panel_content_html
-        end
-      end
-
-      grid.output_buffer << '</tfoot><tbody>'
-
+      grid.output_buffer << '</thead><tbody>'
       # rendering  rows
       cell_value_of_the_ordered_column = nil
       previous_cell_value_of_the_ordered_column = nil
@@ -466,7 +454,18 @@ module Wice
 
       grid.output_buffer << last_row_output if last_row_output
 
-      grid.output_buffer << '</tbody></table>'
+      grid.output_buffer << '</tbody><tfoot>'
+      grid.output_buffer << rendering.pagination_panel(number_of_columns, options[:hide_csv_button]) do
+        if pagination_panel_content_html
+          pagination_panel_content_html
+        else
+          pagination_panel_content_html =
+            pagination_panel_content(grid, options[:extra_request_parameters], options[:allow_showing_all_records], options[:pagination_theme])
+          pagination_panel_content_html
+        end
+      end
+
+      grid.output_buffer << '</tfoot></table>'
 
       base_link_for_filter, base_link_for_show_all_records = rendering.base_link_for_filter(controller, options[:extra_request_parameters])
 
